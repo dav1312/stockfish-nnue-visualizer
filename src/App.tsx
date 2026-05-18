@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { Upload, Info, Activity, Hash, Layers } from 'lucide-react';
+import { Upload, Info, Activity, Hash, Layers, RotateCcw } from 'lucide-react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { NNUEParser } from './nnue/parser';
@@ -108,6 +108,12 @@ function App() {
     }
   };
 
+  const handleReset = () => {
+    const newGame = new Chess(START_FEN);
+    setGame(newGame);
+    setFenText(START_FEN);
+  };
+
   const evalResult = useMemo(() => {
     if (!network || !threatTables || !game.fen()) return null;
     try {
@@ -184,12 +190,21 @@ function App() {
             <div className="lg:col-span-4 space-y-6">
               <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
                 <label className="block text-sm font-semibold text-slate-700 mb-2">FEN Position</label>
-                <input 
-                  type="text" 
-                  value={fenText} 
-                  onChange={handleFenTextChange}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md font-mono text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                />
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={fenText} 
+                    onChange={handleFenTextChange}
+                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-md font-mono text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                  <button
+                    onClick={handleReset}
+                    className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md border border-slate-200 transition-colors"
+                    title="Reset to starting position"
+                  >
+                    <RotateCcw size={18} />
+                  </button>
+                </div>
                 
                 {/* Interactive Visual Board (Updated for v5 'options' prop) */}
                 <div className="mt-6 w-full max-w-[320px] mx-auto rounded shadow-md overflow-hidden">
