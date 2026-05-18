@@ -1,45 +1,69 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { Upload, Cpu, Info, Activity, Hash, Layers } from 'lucide-react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { Upload, Info, Activity, Hash, Layers } from 'lucide-react';
+import { Chess } from 'chess.js';
+import { Chessboard } from 'react-chessboard';
 import { NNUEParser } from './nnue/parser';
 import { evaluateFen } from './lib/evaluate';
 import { Heatmap } from './components/Heatmap';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-const PIECE_UNICODE: Record<number, string> = {
-  1: '♙', 2: '♘', 3: '♗', 4: '♖', 5: '♕', 6: '♔', // White
-  9: '♟', 10: '♞', 11: '♝', 12: '♜', 13: '♛', 14: '♚' // Black
-};
 
 function App() {
   const [threatTables, setThreatTables] = useState<any>(null);
   const [network, setNetwork] = useState<any>(null);
-  const [fen, setFen] = useState<string>(START_FEN);
-  const [loadingMsg, setLoadingMsg] = useState<string | null>("Loading Threat Tables...");
+  const [loadingMsg, setLoadingMsg] = useState<string | null>("Loading resources...");
+  
+  // Ref to prevent double-fetching in React 18 StrictMode
+  const hasFetched = useRef(false);
 
-  // Fetch threat tables on load
+  // Game state for logical moves and FEN sync
+  const [game, setGame] = useState(new Chess(START_FEN));
+  const [fenText, setFenText] = useState(START_FEN);
+
+  // Fetch Threat Tables & Default NNUE on mount
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}threat_tables.json`)
-      .then(res => res.json())
-      .then(data => {
-        setThreatTables(data);
+    if (hasFetched.current) return;
+    hasFetched.current = true;
+
+    async function loadInitialData() {
+      try {
+        setLoadingMsg("Loading Threat Tables...");
+        const threatsRes = await fetch(`${import.meta.env.BASE_URL}threat_tables.json`);
+        if (!threatsRes.ok) throw new Error("Could not load threat tables.");
+        setThreatTables(await threatsRes.json());
+
+        setLoadingMsg("Loading Default Neural Network...");
+        try {
+          // Adjust this filename to match the network you put in /public
+          const nnueRes = await fetch(`${import.meta.env.BASE_URL}nn-83a0d6daf7e5.nnue`);
+          if (nnueRes.ok) {
+            const buffer = await nnueRes.arrayBuffer();
+            const parser = new NNUEParser(buffer);
+            setNetwork(parser.parse());
+          }
+        } catch (e) {
+          console.warn("Default NNUE not found or failed to parse. User can upload manually.");
+        }
+        
         setLoadingMsg(null);
-      })
-      .catch(err => setLoadingMsg(`Error loading threat tables. Please check /public/threat_tables.json: ${err.message}`));
+      } catch (err: any) {
+        setLoadingMsg(err.message);
+      }
+    }
+    loadInitialData();
   }, []);
 
+  // Handle Manual File Upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setLoadingMsg("Parsing .nnue file (this may take a moment)...");
-    
-    // We use a slight delay so the browser can paint the loading message
     setTimeout(async () => {
       try {
         const buffer = await file.arrayBuffer();
         const parser = new NNUEParser(buffer);
-        const parsedNet = parser.parse();
-        setNetwork(parsedNet);
+        setNetwork(parser.parse());
         setLoadingMsg(null);
       } catch (err: any) {
         setLoadingMsg(`Error parsing file: ${err.message}`);
@@ -47,15 +71,50 @@ function App() {
     }, 100);
   };
 
-  const evalResult = useMemo(() => {
-    if (!network || !threatTables || !fen) return null;
+  // Chess logic: Handle Drag and Drop move 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const onDrop = ({ sourceSquare, targetSquare, piece: _piece }: any) => {
     try {
-      return evaluateFen(fen, network, threatTables);
+      const move = game.move({
+        from: sourceSquare,
+        to: targetSquare,
+        promotion: 'q', // Always promote to queen for simplicity
+      });
+
+      // If invalid move, snap back
+      if (move === null) return false;
+
+      // Update states if valid
+      const newFen = game.fen();
+      setGame(new Chess(newFen));
+      setFenText(newFen);
+      return true;
     } catch (e) {
-      console.error(e);
+      return false; // Invalid move
+    }
+  };
+
+  // Chess logic: Handle text input FEN change
+  const handleFenTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newFen = e.target.value;
+    setFenText(newFen);
+    try {
+      // Validate FEN by loading it into chess.js
+      const newGame = new Chess(newFen);
+      setGame(newGame);
+    } catch (e) {
+      // Invalid FEN typed (user is halfway through typing), don't update board yet
+    }
+  };
+
+  const evalResult = useMemo(() => {
+    if (!network || !threatTables || !game.fen()) return null;
+    try {
+      return evaluateFen(game.fen(), network, threatTables);
+    } catch (e) {
       return null;
     }
-  }, [network, threatTables, fen]);
+  }, [network, threatTables, game.fen()]);
 
   if (!threatTables) {
     return <div className="h-screen flex items-center justify-center font-mono text-slate-500">{loadingMsg}</div>;
@@ -67,7 +126,7 @@ function App() {
       <header className="bg-slate-900 text-white shadow-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Cpu className="text-emerald-400" />
+          <img src={`${import.meta.env.BASE_URL}favicon.png`} alt="Logo" className="h-8 w-8" />
             <h1 className="font-bold text-lg tracking-tight">Stockfish NNUE Visualizer <span className="text-emerald-400/80 font-mono text-sm font-normal bg-white/10 px-2 py-0.5 rounded ml-2">SFNNv13</span></h1>
           </div>
         </div>
@@ -87,7 +146,7 @@ function App() {
                     <Upload size={32} />
                   </div>
                   <h3 className="mt-4 font-semibold text-slate-700 text-lg">Upload Network File</h3>
-                  <p className="text-slate-400 text-sm mt-1">Drag & drop or click to select a .nnue file (e.g. nn-83a0d6daf7e5.nnue)</p>
+                  <p className="text-slate-400 text-sm mt-1">Drag & drop or click to select a .nnue file.</p>
                   <input type="file" accept=".nnue" className="hidden" onChange={handleFileUpload} />
                 </label>
               )}
@@ -126,25 +185,19 @@ function App() {
                 <label className="block text-sm font-semibold text-slate-700 mb-2">FEN Position</label>
                 <input 
                   type="text" 
-                  value={fen} 
-                  onChange={(e) => setFen(e.target.value)}
+                  value={fenText} 
+                  onChange={handleFenTextChange}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-md font-mono text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                 />
                 
-                {/* Visual Board */}
-                <div className="mt-6 aspect-square w-full max-w-[280px] mx-auto grid grid-cols-8 grid-rows-8 border-2 border-slate-800 rounded shadow-md overflow-hidden">
-                  {Array.from({length: 64}).map((_, i) => {
-                    const r = 7 - Math.floor(i / 8); // top rank is 7 in FEN string visually
-                    const c = i % 8;
-                    const sq = r * 8 + c;
-                    const p = evalResult.board.pieces[sq];
-                    const isDark = (r + c) % 2 === 1;
-                    return (
-                      <div key={sq} className={`flex items-center justify-center text-2xl ${isDark ? 'bg-emerald-600/30' : 'bg-amber-50'}`}>
-                        {p && <span className="drop-shadow-md">{PIECE_UNICODE[(p.color === 1 ? 8 : 0) + p.piece]}</span>}
-                      </div>
-                    );
-                  })}
+                {/* Interactive Visual Board (Updated for v5 'options' prop) */}
+                <div className="mt-6 w-full max-w-[320px] mx-auto rounded shadow-md overflow-hidden">
+                  <Chessboard 
+                    options={{
+                      position: game.fen(),
+                      onPieceDrop: onDrop
+                    }}
+                  />
                 </div>
 
                 <div className="mt-6 space-y-2 text-sm">
@@ -180,10 +233,10 @@ function App() {
 
             {/* RIGHT COLUMN: Network Activations */}
             <div className="lg:col-span-8 space-y-4">
-              {/* <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                 Network Activations Visualization
               </h2>
-              <p className="text-sm text-slate-500">Hover over the grids to see specific tensor values at runtime.</p> */}
+              <p className="text-sm text-slate-500">Play a move on the board to see how the hidden layers react.</p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* L1: Transformed Features (1024 dims) -> render as 32x32 */}
