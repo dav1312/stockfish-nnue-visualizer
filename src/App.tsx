@@ -18,13 +18,13 @@ function App() {
 
   // Fetch threat tables on load
   useEffect(() => {
-    fetch('/threat_tables.json')
+    fetch(`${import.meta.env.BASE_URL}threat_tables.json`)
       .then(res => res.json())
       .then(data => {
         setThreatTables(data);
         setLoadingMsg(null);
       })
-      .catch(err => setLoadingMsg("Error loading threat tables. Please check /public/threat_tables.json"));
+      .catch(err => setLoadingMsg(`Error loading threat tables. Please check /public/threat_tables.json: ${err.message}`));
   }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

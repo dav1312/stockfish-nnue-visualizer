@@ -31,7 +31,7 @@ export class NNUEParser {
     // threatPsqtWeights and psqtWeights share the same LEB128 block
     const ftThreatPsqtWeights = new Int32Array(60720 * 8);
     const ftPsqtWeights = new Int32Array(22528 * 8);
-    this.readLEB128Multiple([ftThreatPsqtWeights, ftPsqtWeights], true); // int32
+    this.readLEB128Multiple([ftThreatPsqtWeights, ftPsqtWeights]); // int32
 
     // 3. Network Architecture (8 Buckets)
     const buckets = [];
@@ -98,11 +98,11 @@ export class NNUEParser {
 
   private readLEB128(count: number, isInt32: boolean) {
     const arr = isInt32 ? new Int32Array(count) : new Int16Array(count);
-    this.readLEB128Multiple([arr], isInt32);
+    this.readLEB128Multiple([arr]);
     return arr;
   }
 
-  private readLEB128Multiple(arrays: (Int16Array | Int32Array)[], isInt32: boolean) {
+  private readLEB128Multiple(arrays: (Int16Array | Int32Array)[]) {
     const magic = "COMPRESSED_LEB128";
     for (let i = 0; i < magic.length; i++) {
       if (this.view.getUint8(this.offset++) !== magic.charCodeAt(i)) {

@@ -1,5 +1,18 @@
-export enum Color { WHITE = 0, BLACK = 1 }
-export enum PieceType { PAWN = 1, KNIGHT = 2, BISHOP = 3, ROOK = 4, QUEEN = 5, KING = 6 }
+export const Color = {
+  WHITE: 0,
+  BLACK: 1
+} as const;
+export type Color = (typeof Color)[keyof typeof Color];
+
+export const PieceType = {
+  PAWN: 1,
+  KNIGHT: 2,
+  BISHOP: 3,
+  ROOK: 4,
+  QUEEN: 5,
+  KING: 6
+} as const;
+export type PieceType = (typeof PieceType)[keyof typeof PieceType];
 
 export class Board {
   pieces: Array<{ piece: PieceType, color: Color } | null> = new Array(64).fill(null);
@@ -111,7 +124,7 @@ export class FeatureExtractor {
     };
 
     for (const c of [Color.WHITE, Color.BLACK]) {
-      const attackColor = perspective === Color.WHITE ? c : (1 - c);
+      const attackColor: Color = (perspective === Color.WHITE ? c : (1 - c)) as Color;
       const attackerPawn = Board.makePiece(attackColor, PieceType.PAWN);
 
       for (let s = 0; s < 64; s++) {
