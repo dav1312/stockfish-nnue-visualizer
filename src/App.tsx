@@ -12,6 +12,7 @@ function App() {
   const [threatTables, setThreatTables] = useState<any>(null);
   const [network, setNetwork] = useState<any>(null);
   const [loadingMsg, setLoadingMsg] = useState<string | null>("Loading resources...");
+  const [fixedPerspective, setFixedPerspective] = useState(false);
   
   // Ref to prevent double-fetching in React 18 StrictMode
   const hasFetched = useRef(false);
@@ -233,10 +234,27 @@ function App() {
 
             {/* RIGHT COLUMN: Network Activations */}
             <div className="lg:col-span-8 space-y-4">
-              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                Network Activations Visualization
-              </h2>
-              <p className="text-sm text-slate-500">Play a move on the board to see how the hidden layers react.</p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    Network Activations Visualization
+                  </h2>
+                  <p className="text-sm text-slate-500">Play a move on the board to see how the hidden layers react.</p>
+                </div>
+                <div className="flex items-center gap-3 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Perspective:</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={fixedPerspective}
+                      onChange={() => setFixedPerspective(!fixedPerspective)}
+                    />
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                    <span className="ml-2 text-[10px] font-bold text-slate-600 uppercase tracking-wider">{fixedPerspective ? "Fixed (B/W)" : "Relative (STM)"}</span>
+                  </label>
+                </div>
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* L1: Transformed Features (1024 dims) -> render as 32x32 */}
@@ -245,6 +263,8 @@ function App() {
                   data={evalResult.transformedFeatures} 
                   width={32} height={32} maxVal={127} 
                   isSplit={true}
+                  fixedPerspective={fixedPerspective}
+                  turn={game.turn()}
                 />
                 
                 <div className="flex flex-col gap-4">

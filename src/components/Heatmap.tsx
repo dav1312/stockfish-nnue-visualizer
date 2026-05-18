@@ -7,9 +7,20 @@ interface HeatmapProps {
   title: string;
   maxVal?: number;
   isSplit?: boolean; 
+  fixedPerspective?: boolean;
+  turn?: 'w' | 'b';
 }
 
-export const Heatmap: React.FC<HeatmapProps> = ({ data, width, height, title, maxVal = 255, isSplit = false }) => {
+export const Heatmap: React.FC<HeatmapProps> = ({ 
+  data, 
+  width, 
+  height, 
+  title, 
+  maxVal = 255, 
+  isSplit = false,
+  fixedPerspective = false,
+  turn = 'w'
+}) => {
   
   // Calculate symmetry metrics and active feature density
   const stats = useMemo(() => {
@@ -77,6 +88,32 @@ export const Heatmap: React.FC<HeatmapProps> = ({ data, width, height, title, ma
     </div>
   );
 
+  const splitConfig = useMemo(() => {
+    if (!isSplit) return null;
+
+    let topLabel = "Side to Move";
+    let bottomLabel = "Not Side to Move";
+    let topRange: [number, number] = [0, 512];
+    let bottomRange: [number, number] = [512, 1024];
+
+    if (fixedPerspective) {
+      topLabel = "Black Perspective";
+      bottomLabel = "White Perspective";
+
+      if (turn === 'w') {
+        // White is STM (0-512), Black is NSTM (512-1024)
+        topRange = [512, 1024]; // Black Top
+        bottomRange = [0, 512]; // White Bottom
+      } else {
+        // Black is STM (0-512), White is NSTM (512-1024)
+        topRange = [0, 512];    // Black Top
+        bottomRange = [512, 1024]; // White Bottom
+      }
+    }
+
+    return { topLabel, bottomLabel, topRange, bottomRange };
+  }, [isSplit, fixedPerspective, turn]);
+
   return (
     <div className="flex flex-col gap-2 p-4 bg-white rounded-xl shadow-sm border border-slate-200">
       <div className="flex justify-between items-end mb-1">
@@ -103,17 +140,17 @@ export const Heatmap: React.FC<HeatmapProps> = ({ data, width, height, title, ma
         </div>
       </div>
       
-      {isSplit ? (
+      {isSplit && splitConfig ? (
         <div className="flex flex-col gap-1">
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">Side to Move - 512</div>
-          {renderGrid(0, 512)}
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">{splitConfig.topLabel} - 512</div>
+          {renderGrid(splitConfig.topRange[0], splitConfig.topRange[1])}
           
           <div className="h-px bg-slate-300 w-full my-2 relative">
              <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-2 text-[10px] text-slate-300 font-mono">PERSPECTIVE SPLIT</span>
           </div>
           
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">Not Side to Move - 512</div>
-          {renderGrid(512, 1024)}
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">{splitConfig.bottomLabel} - 512</div>
+          {renderGrid(splitConfig.bottomRange[0], splitConfig.bottomRange[1])}
         </div>
       ) : (
         renderGrid(0, width * height)
