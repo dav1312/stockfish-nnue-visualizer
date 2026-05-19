@@ -135,8 +135,11 @@ function App() {
       <header className="bg-slate-900 text-white shadow-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-          <img src={`${import.meta.env.BASE_URL}favicon.png`} alt="Logo" className="h-8 w-8" />
-            <h1 className="font-bold text-lg tracking-tight">Stockfish NNUE Visualizer <span className="text-emerald-400/80 font-mono text-sm font-normal bg-white/10 px-2 py-0.5 rounded ml-2">SFNNv13</span></h1>
+            <img src={`${import.meta.env.BASE_URL}favicon.png`} alt="Logo" className="h-8 w-8" />
+            <h1 className="font-bold text-lg tracking-tight inline-flex items-center gap-2">
+              Stockfish NNUE Visualizer 
+              <span className="text-emerald-400/80 font-mono text-sm font-normal bg-white/10 px-2 py-0.5 rounded">SFNNv14</span>
+            </h1>
           </div>
         </div>
       </header>

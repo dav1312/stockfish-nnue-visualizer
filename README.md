@@ -1,6 +1,6 @@
 # Stockfish NNUE Visualizer
 
-A modern, browser-based tool to inspect and visualize the internal neural network activations of Stockfish's evaluation function (SFNNv13 architecture).
+A modern, browser-based tool to inspect and visualize the internal neural network activations of Stockfish's evaluation function (SFNNv14 architecture).
 
 ## Overview
 
