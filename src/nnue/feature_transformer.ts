@@ -56,6 +56,8 @@ export class FeatureTransformer {
 
     // 5. Apply Pairwise SCReLU Activation
     const transformedFeatures = new Uint8Array(1024);
+    const stm_raw = new Int32Array(1024);
+    const nstm_raw = new Int32Array(1024);
     
     // Assign "perspective 0" to Side-To-Move, "perspective 1" to Not-Side-To-Move
     const perspectives = stm === Color.WHITE ?
@@ -66,10 +68,15 @@ export class FeatureTransformer {
       const acc = p === 0 ? perspectives.stm : perspectives.nstm;
       const t_acc = p === 0 ? perspectives.stm_t : perspectives.nstm_t;
       const out_offset = p === 0 ? 0 : 512;
+      const raw_acc = p === 0 ? stm_raw : nstm_raw;
 
       for (let j = 0; j < 512; j++) {
         let sum0 = acc[j] + t_acc[j];
         let sum1 = acc[j + 512] + t_acc[j + 512];
+        
+        // Save the pre-clamped pairs for visualization
+        raw_acc[j] = sum0;
+        raw_acc[j + 512] = sum1;
         
         // clamp(x, 0, 255)
         sum0 = Math.max(0, Math.min(255, sum0));
@@ -79,6 +86,10 @@ export class FeatureTransformer {
       }
     }
 
-    return { transformedFeatures, materialist };
+    return { 
+      transformedFeatures, 
+      materialist, 
+      rawAccumulators: { stm: stm_raw, nstm: nstm_raw } 
+    };
   }
 }

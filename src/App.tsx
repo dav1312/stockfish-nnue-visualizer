@@ -5,6 +5,7 @@ import { Chessboard } from 'react-chessboard';
 import { NNUEParser } from './nnue/parser';
 import { evaluateFen } from './lib/evaluate';
 import { Heatmap } from './components/Heatmap';
+import { PairwiseScatterPlot } from './components/PairwiseScatterPlot';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -13,6 +14,7 @@ function App() {
   const [network, setNetwork] = useState<any>(null);
   const [loadingMsg, setLoadingMsg] = useState<string | null>("Loading resources...");
   const [fixedPerspective, setFixedPerspective] = useState(false);
+  const [l1ViewMode, setL1ViewMode] = useState<'heatmap' | 'scatter'>('heatmap');
   
   // Ref to prevent double-fetching in React 18 StrictMode
   const hasFetched = useRef(false);
@@ -272,19 +274,52 @@ function App() {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* L1: Transformed Features (1024 dims) -> render as 32x32 */}
-                <Heatmap 
-                  title="Feature Transformer (L1)" 
-                  data={evalResult.transformedFeatures} 
-                  width={32} height={32} maxVal={127} 
-                  isSplit={true}
-                  fixedPerspective={fixedPerspective}
-                  turn={game.turn()}
-                />
+                {/* Left side of Activations (L1 Dual View) */}
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-end">
+                    <div className="flex bg-slate-200/60 p-0.5 rounded-lg border border-slate-200/50 shadow-inner">
+                      <button
+                        onClick={() => setL1ViewMode('heatmap')}
+                        className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider rounded-md transition-all ${
+                          l1ViewMode === 'heatmap' ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                      >
+                        Heatmap
+                      </button>
+                      <button
+                        onClick={() => setL1ViewMode('scatter')}
+                        className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wider rounded-md transition-all ${
+                          l1ViewMode === 'scatter' ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                      >
+                        Scatter Plot
+                      </button>
+                    </div>
+                  </div>
+
+                  {l1ViewMode === 'heatmap' ? (
+                    <Heatmap 
+                      title="Feature Transformer (L1)" 
+                      data={evalResult.transformedFeatures} 
+                      width={32} height={32} maxVal={127} 
+                      isSplit={true}
+                      fixedPerspective={fixedPerspective}
+                      turn={game.turn()}
+                    />
+                  ) : (
+                    <PairwiseScatterPlot
+                      stmRaw={evalResult.rawAccumulators.stm}
+                      nstmRaw={evalResult.rawAccumulators.nstm}
+                      fixedPerspective={fixedPerspective}
+                      turn={game.turn()}
+                    />
+                  )}
+                </div>
                 
+                {/* Right side of Activations (Deeper layers and scores) */}
                 <div className="flex flex-col gap-4">
                   {/* L2: FC_0 -> SCReLU + CReLU (31 sqr + 31 linear = 62 active dims) */}
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 mt-[34px]"> {/* Match height of the toggle above */}
                     <Heatmap 
                       title="Hidden Layer 0 (SqrClipped & Clipped)" 
                       data={evalResult.activations.ac_sqr_0_out} 

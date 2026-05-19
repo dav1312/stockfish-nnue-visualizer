@@ -15,7 +15,7 @@ export function evaluateFen(fen: string, network: any, threatTables: any) {
   const th_w = FeatureExtractor.getFullThreatsIndices(board, Color.WHITE, threatTables);
   const th_b = FeatureExtractor.getFullThreatsIndices(board, Color.BLACK, threatTables);
 
-  const { transformedFeatures, materialist } = FeatureTransformer.transform(
+  const { transformedFeatures, materialist, rawAccumulators } = FeatureTransformer.transform(
     network.featureTransformer, ka_w, ka_b, th_w, th_b, bucket, sideToMove
   );
 
@@ -34,6 +34,7 @@ export function evaluateFen(fen: string, network: any, threatTables: any) {
     pieceCount, 
     features: { ka_w, ka_b, th_w, th_b },
     transformedFeatures,
+    rawAccumulators,
     activations
   };
 }
