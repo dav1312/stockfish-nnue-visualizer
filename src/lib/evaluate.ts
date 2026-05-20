@@ -26,6 +26,7 @@ export function evaluateFen(fen: string, network: any, threatTables: any) {
   const totalInternalUnits = psqtInternal + posInternal;
 
   // --- Trace the Dominant Point ---
+  let maxClippedVal = -1;
   let maxUnclippedVal = -1;
   let maxIdx = -1;
 
@@ -35,15 +36,24 @@ export function evaluateFen(fen: string, network: any, threatTables: any) {
     const j = i % 512;
     const rawArr = isStm ? rawAccumulators.stm : rawAccumulators.nstm;
     
-    // Grab the pre-clamp sums for this pair
     const rawX = rawArr[j];
     const rawY = rawArr[j + 512];
+    
+    // 1. Get the actual network output after SCReLU clamping
+    const clippedVal = transformedFeatures[i];
 
-    // If either side is <= 0, the node is dead (outputs 0), so we ignore it.
-    if (rawX > 0 && rawY > 0) {
-      // Calculate the unbounded product to break ties
-      const unclippedProduct = rawX * rawY;
-      
+    // 2. Get the pre-clamp product (only if both are positive, otherwise it's 0)
+    const unclippedProduct = (rawX > 0 && rawY > 0) ? (rawX * rawY) : 0;
+
+    // Condition A: This node outputs a strictly stronger signal to the next layer
+    if (clippedVal > maxClippedVal) {
+      maxClippedVal = clippedVal;
+      maxUnclippedVal = unclippedProduct;
+      maxIdx = i;
+    } 
+    // Condition B: Both nodes output the same signal (e.g., both hit 127),
+    // so we break the tie using the node that has the most raw pressure behind it.
+    else if (clippedVal === maxClippedVal && clippedVal > 0) {
       if (unclippedProduct > maxUnclippedVal) {
         maxUnclippedVal = unclippedProduct;
         maxIdx = i;
@@ -52,7 +62,7 @@ export function evaluateFen(fen: string, network: any, threatTables: any) {
   }
 
   let dominantPoint = null;
-  if (maxIdx !== -1 && maxUnclippedVal > 0) {
+  if (maxIdx !== -1 && maxClippedVal > 0) {
     const isStm = maxIdx < 512;
     const j = maxIdx % 512;
     // Determine the board perspective for this half of the features
