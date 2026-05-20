@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Star } from 'lucide-react';
 
 interface PairwiseScatterPlotProps {
   stmRaw: Int32Array;
@@ -6,6 +7,7 @@ interface PairwiseScatterPlotProps {
   fixedPerspective: boolean;
   turn: 'w' | 'b';
   title?: string;
+  dominantPoint?: any;
 }
 
 export const PairwiseScatterPlot: React.FC<PairwiseScatterPlotProps> = ({
@@ -13,7 +15,8 @@ export const PairwiseScatterPlot: React.FC<PairwiseScatterPlotProps> = ({
   nstmRaw,
   fixedPerspective,
   turn,
-  title = "Pairwise Pre-SCReLU Scatter"
+  title = "Pairwise Pre-SCReLU Scatter",
+  dominantPoint
 }) => {
   const { stmPoints, nstmPoints, stmColor, nstmColor, stmLabel, nstmLabel, bounds } = useMemo(() => {
     const stm = [];
@@ -109,7 +112,7 @@ export const PairwiseScatterPlot: React.FC<PairwiseScatterPlotProps> = ({
           {nstmPoints.map((p, i) => {
             const isActive = p.x > 0 && p.y > 0;
             return (
-              <circle key={`nstm-${i}`} cx={`${getX(p.x)}%`} cy={`${getY(p.y)}%`} r="1.5" fill={nstmColor} fillOpacity={isActive ? 0.8 : 0.15}>
+              <circle key={`nstm-${i}`} cx={`${getX(p.x)}%`} cy={`${getY(p.y)}%`} r={isActive ? "2.5" : "1.5"} fill={nstmColor} fillOpacity={isActive ? 0.8 : 0.15}>
                 <title>NSTM Idx: {i} | Acc[j]: {p.x} | Acc[j+512]: {p.y} {isActive ? "(Active)" : "(Dead = 0)"}</title>
               </circle>
             );
@@ -117,11 +120,21 @@ export const PairwiseScatterPlot: React.FC<PairwiseScatterPlotProps> = ({
           {stmPoints.map((p, i) => {
             const isActive = p.x > 0 && p.y > 0;
             return (
-              <circle key={`stm-${i}`} cx={`${getX(p.x)}%`} cy={`${getY(p.y)}%`} r="1.5" fill={stmColor} fillOpacity={isActive ? 0.8 : 0.15}>
+              <circle key={`stm-${i}`} cx={`${getX(p.x)}%`} cy={`${getY(p.y)}%`} r={isActive ? "2.5" : "1.5"} fill={stmColor} fillOpacity={isActive ? 0.8 : 0.15}>
                 <title>STM Idx: {i} | Acc[j]: {p.x} | Acc[j+512]: {p.y} {isActive ? "(Active)" : "(Dead = 0)"}</title>
               </circle>
             );
           })}
+
+          {/* Dominant Point Marker */}
+          {dominantPoint && (
+            <circle
+              cx={`${getX(dominantPoint.xVal)}%`}
+              cy={`${getY(dominantPoint.yVal)}%`}
+              r="3"
+              fill="#eab308"
+            />
+          )}
         </svg>
 
         {/* Labels Overlay */}
@@ -143,6 +156,40 @@ export const PairwiseScatterPlot: React.FC<PairwiseScatterPlotProps> = ({
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{nstmLabel}</span>
         </div>
       </div>
+
+      {/* Dominant Point Attribution Panel */}
+      {dominantPoint && (
+        <div className="mt-2 pt-3 border-t border-slate-200">
+          <h4 className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1">
+            <Star size={14} className="text-yellow-500 fill-yellow-500" />
+            Dominant Point Attribution (Idx: {dominantPoint.j} / {dominantPoint.isStm ? 'STM' : 'NSTM'})
+          </h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-slate-50 p-2 rounded border border-slate-200">
+              <div className="text-[10px] font-bold text-slate-500 uppercase mb-1 border-b border-slate-200 pb-1">Top X-Axis Drivers</div>
+              <ul className="space-y-1">
+                {dominantPoint.xTop.map((f: any, i: number) => (
+                  <li key={i} className="text-[10px] flex justify-between">
+                    <span className="text-slate-700 truncate pr-2" title={f.desc}>{f.desc}</span>
+                    <span className="font-mono text-emerald-600">+{f.weight}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="bg-slate-50 p-2 rounded border border-slate-200">
+              <div className="text-[10px] font-bold text-slate-500 uppercase mb-1 border-b border-slate-200 pb-1">Top Y-Axis Drivers</div>
+              <ul className="space-y-1">
+                {dominantPoint.yTop.map((f: any, i: number) => (
+                  <li key={i} className="text-[10px] flex justify-between">
+                    <span className="text-slate-700 truncate pr-2" title={f.desc}>{f.desc}</span>
+                    <span className="font-mono text-emerald-600">+{f.weight}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

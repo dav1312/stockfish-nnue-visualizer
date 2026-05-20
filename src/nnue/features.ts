@@ -86,8 +86,23 @@ export class FeatureExtractor {
         0,   704,  1408,  2112,  2112,  1408,   704,     0
   ];
 
-  static getHalfKAv2Indices(board: Board, perspective: Color): number[] {
-    const active: number[] = [];
+  static sqToAlg(sq: number) {
+    const file = String.fromCharCode(97 + (sq % 8));
+    const rank = Math.floor(sq / 8) + 1;
+    return file + rank;
+  }
+
+  static pieceName(pt: PieceType) {
+    return ['', 'Pawn', 'Knight', 'Bishop', 'Rook', 'Queen', 'King'][pt];
+  }
+
+  static colorName(c: Color) {
+    return c === Color.WHITE ? 'W.' : 'B.';
+  }
+
+  static getHalfKAv2Indices(board: Board, perspective: Color) {
+    const indices: number[] = [];
+    const descriptions: string[] = [];
     const ksq = perspective === Color.WHITE ? board.whiteKing : board.blackKing;
     const flip = perspective === Color.BLACK ? 56 : 0;
 
@@ -98,14 +113,16 @@ export class FeatureExtractor {
         const index = (s ^ FeatureExtractor.OrientTBL_HalfKA[ksq] ^ flip) 
                     + FeatureExtractor.PieceSquareIndex[perspective][pc] 
                     + FeatureExtractor.KingBuckets[ksq ^ flip];
-        active.push(index);
+        indices.push(index);
+        descriptions.push(`${FeatureExtractor.colorName(p.color)} ${FeatureExtractor.pieceName(p.piece)} on ${FeatureExtractor.sqToAlg(s)}`);
       }
     }
-    return active;
+    return { indices, descriptions };
   }
 
-  static getFullThreatsIndices(board: Board, perspective: Color, threatTables: any): number[] {
-    const active: number[] = [];
+  static getFullThreatsIndices(board: Board, perspective: Color, threatTables: any) {
+    const indices: number[] = [];
+    const descriptions: string[] = [];
     const ksq = perspective === Color.WHITE ? board.whiteKing : board.blackKing;
 
     const makeIndex = (attacker: number, from: number, to: number, attacked: number) => {
@@ -117,7 +134,6 @@ export class FeatureExtractor {
       const attkr_ori = attacker ^ swap;
       const attkd_ori = attacked ^ swap;
 
-      // Notice the ? 1 : 0 here to match C++ true -> 1 cast!
       return threatTables.index_lut1[attkr_ori][attkd_ori][from_oriented < to_oriented ? 1 : 0]
            + threatTables.offsets[attkr_ori][from_oriented]
            + threatTables.index_lut2[attkr_ori][from_oriented][to_oriented];
@@ -140,7 +156,10 @@ export class FeatureExtractor {
               const target = board.pieces[to];
               if (target) {
                 const idx = makeIndex(attackerPawn, s, to, Board.makePiece(target.color, target.piece));
-                if (idx < 60720) active.push(idx);
+                if (idx < 60720) {
+                  indices.push(idx);
+                  descriptions.push(`${FeatureExtractor.colorName(attackColor)} Pawn ${FeatureExtractor.sqToAlg(s)}->${FeatureExtractor.sqToAlg(to)}`);
+                }
               }
             }
           }
@@ -150,7 +169,10 @@ export class FeatureExtractor {
             const target = board.pieces[toPush];
             if (target && target.piece === PieceType.PAWN) {
               const idx = makeIndex(attackerPawn, s, toPush, Board.makePiece(target.color, target.piece));
-              if (idx < 60720) active.push(idx);
+              if (idx < 60720) {
+                indices.push(idx);
+                descriptions.push(`${FeatureExtractor.colorName(attackColor)} Pawn ${FeatureExtractor.sqToAlg(s)}->${FeatureExtractor.sqToAlg(toPush)}`);
+              }
             }
           }
         }
@@ -182,7 +204,10 @@ export class FeatureExtractor {
               
               if (target) {
                 const idx = makeIndex(attackerPiece, s, to, Board.makePiece(target.color, target.piece));
-                if (idx < 60720) active.push(idx);
+                if (idx < 60720) {
+                  indices.push(idx);
+                  descriptions.push(`${FeatureExtractor.colorName(attackColor)} ${FeatureExtractor.pieceName(p.piece)} ${FeatureExtractor.sqToAlg(s)}->${FeatureExtractor.sqToAlg(to)}`);
+                }
                 break;
               }
               if (!multi) break;
@@ -191,6 +216,6 @@ export class FeatureExtractor {
         }
       }
     }
-    return active.sort((a, b) => a - b);
+    return { indices, descriptions };
   }
 }

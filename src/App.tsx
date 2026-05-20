@@ -230,22 +230,22 @@ function App() {
                     <div className="flex justify-between">
                       <span className="text-slate-500">PSQ Features:</span>
                       <span className="font-mono font-semibold text-blue-600">
-                        {evalResult.features.ka_w.length + evalResult.features.ka_b.length} Total
+                        {evalResult.features.ka_w.indices.length + evalResult.features.ka_b.indices.length} Total
                       </span>
                     </div>
                     <span className="text-[10px] text-slate-400 text-right font-mono">
-                      ({evalResult.features.ka_w.length} W + {evalResult.features.ka_b.length} B)
+                      ({evalResult.features.ka_w.indices.length} W + {evalResult.features.ka_b.indices.length} B)
                     </span>
                   </div>
                   <div className="flex flex-col border-b pb-1">
                     <div className="flex justify-between">
                       <span className="text-slate-500">Threat Features:</span>
                       <span className="font-mono font-semibold text-rose-600">
-                        {evalResult.features.th_w.length + evalResult.features.th_b.length} Total
+                        {evalResult.features.th_w.indices.length + evalResult.features.th_b.indices.length} Total
                       </span>
                     </div>
                     <span className="text-[10px] text-slate-400 text-right font-mono">
-                      ({evalResult.features.th_w.length} W + {evalResult.features.th_b.length} B)
+                      ({evalResult.features.th_w.indices.length} W + {evalResult.features.th_b.indices.length} B)
                     </span>
                   </div>
                 </div>
@@ -315,6 +315,7 @@ function App() {
                       nstmRaw={evalResult.rawAccumulators.nstm}
                       fixedPerspective={fixedPerspective}
                       turn={game.turn()}
+                      dominantPoint={evalResult.dominantPoint}
                     />
                   )}
                 </div>

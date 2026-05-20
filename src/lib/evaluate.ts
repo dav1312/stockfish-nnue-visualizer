@@ -16,7 +16,7 @@ export function evaluateFen(fen: string, network: any, threatTables: any) {
   const th_b = FeatureExtractor.getFullThreatsIndices(board, Color.BLACK, threatTables);
 
   const { transformedFeatures, materialist, rawAccumulators } = FeatureTransformer.transform(
-    network.featureTransformer, ka_w, ka_b, th_w, th_b, bucket, sideToMove
+    network.featureTransformer, ka_w.indices, ka_b.indices, th_w.indices, th_b.indices, bucket, sideToMove
   );
 
   const activations = NNUENetwork.propagate(transformedFeatures, network.buckets[bucket]);
@@ -24,6 +24,66 @@ export function evaluateFen(fen: string, network: any, threatTables: any) {
   const psqtInternal = Math.trunc(materialist / 16);
   const posInternal = Math.trunc(activations.outputValue / 16);
   const totalInternalUnits = psqtInternal + posInternal;
+
+  // --- Trace the Dominant Point ---
+  let maxUnclippedVal = -1;
+  let maxIdx = -1;
+
+  for (let i = 0; i < 1024; i++) {
+    // Determine which perspective array to look at
+    const isStm = i < 512;
+    const j = i % 512;
+    const rawArr = isStm ? rawAccumulators.stm : rawAccumulators.nstm;
+    
+    // Grab the pre-clamp sums for this pair
+    const rawX = rawArr[j];
+    const rawY = rawArr[j + 512];
+
+    // If either side is <= 0, the node is dead (outputs 0), so we ignore it.
+    if (rawX > 0 && rawY > 0) {
+      // Calculate the unbounded product to break ties
+      const unclippedProduct = rawX * rawY;
+      
+      if (unclippedProduct > maxUnclippedVal) {
+        maxUnclippedVal = unclippedProduct;
+        maxIdx = i;
+      }
+    }
+  }
+
+  let dominantPoint = null;
+  if (maxIdx !== -1 && maxUnclippedVal > 0) {
+    const isStm = maxIdx < 512;
+    const j = maxIdx % 512;
+    // Determine the board perspective for this half of the features
+    const domPerspective = isStm ? sideToMove : (sideToMove === Color.WHITE ? Color.BLACK : Color.WHITE);
+    
+    const ka = domPerspective === Color.WHITE ? ka_w : ka_b;
+    const th = domPerspective === Color.WHITE ? th_w : th_b;
+
+    // Helper to find features contributing the highest positive weight
+    const getTopFeatures = (accIndex: number) => {
+      const list = [];
+      for (let i = 0; i < ka.indices.length; i++) {
+        const weight = network.featureTransformer.weights[ka.indices[i] * 1024 + accIndex];
+        if (weight > 0) list.push({ desc: ka.descriptions[i], weight });
+      }
+      for (let i = 0; i < th.indices.length; i++) {
+        const weight = network.featureTransformer.threatWeights[th.indices[i] * 1024 + accIndex];
+        if (weight > 0) list.push({ desc: th.descriptions[i], weight });
+      }
+      return list.sort((a, b) => b.weight - a.weight).slice(0, 3);
+    };
+
+    dominantPoint = {
+      j,
+      isStm,
+      xVal: rawAccumulators[isStm ? 'stm' : 'nstm'][j],
+      yVal: rawAccumulators[isStm ? 'stm' : 'nstm'][j + 512],
+      xTop: getTopFeatures(j),
+      yTop: getTopFeatures(j + 512)
+    };
+  }
 
   return { 
     board,
@@ -35,6 +95,7 @@ export function evaluateFen(fen: string, network: any, threatTables: any) {
     features: { ka_w, ka_b, th_w, th_b },
     transformedFeatures,
     rawAccumulators,
-    activations
+    activations,
+    dominantPoint
   };
 }
